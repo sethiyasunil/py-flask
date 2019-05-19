@@ -1,0 +1,5 @@
+WORKDIR app
+add . app
+run pip install -r requirements.txt
+EXPOSE 5000
+cmd ['python', 'main.py']
