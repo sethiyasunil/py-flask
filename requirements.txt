@@ -10,3 +10,5 @@ requests==2.22.0
 urllib3==1.25.2
 Werkzeug==0.15.4
 flask-sqlalchemy
+Flask-Migrate
+datetime
