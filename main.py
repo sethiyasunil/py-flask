@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import DevConfig
 from datetime import datetime
+from sqlalchemy import func
 
 app = Flask(__name__)
 app.config.from_object(DevConfig)
@@ -64,8 +65,7 @@ class Tag(db.Model):
     def __init__(self, title):
         self.title = title
     def __repr__(self):
-        return "<Tag- id={} title={}>".format(self.id, self.title)
-
+import pdb; pdb.set_trace()
 class Comment(db.Model):
     __tablename__ = 'comment'
     id = db.Column(db.Integer(), primary_key=True)
@@ -75,6 +75,23 @@ class Comment(db.Model):
     post_id = db.Column(db.Integer(), db.ForeignKey('post.id'))
     def __repr__(self):
         return "<Comment- text={}".format(self.text[:15] )
+
+
+def sidebar_data():
+    recent = Post.query.order_by(
+        Post.publish_date.desc()
+    ).limit(5).all()
+
+    top_tags = db.session.query(
+        Tag, func.count(tags.c.post_id).label('total')
+    ).join(
+        tags
+    ).group_by(Tag).order_by('total DESC').limit(5).all()
+
+    return recent, top_tags
+
+
+
 
 
 @app.route('/')
