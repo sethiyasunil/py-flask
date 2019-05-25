@@ -65,7 +65,8 @@ class Tag(db.Model):
     def __init__(self, title):
         self.title = title
     def __repr__(self):
-import pdb; pdb.set_trace()
+            return "<Tag - id={}".format(self.title)
+
 class Comment(db.Model):
     __tablename__ = 'comment'
     id = db.Column(db.Integer(), primary_key=True)
