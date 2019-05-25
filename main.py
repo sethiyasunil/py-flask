@@ -67,6 +67,7 @@ class Tag(db.Model):
     def __repr__(self):
             return "<Tag - id={}".format(self.title)
 
+
 class Comment(db.Model):
     __tablename__ = 'comment'
     id = db.Column(db.Integer(), primary_key=True)
