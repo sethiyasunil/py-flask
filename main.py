@@ -1,6 +1,9 @@
-from flask import Flask, render_template, flash, url_for
+from flask import Flask, render_template, redirect, flash, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf import FlaskForm as Form
+from wtforms import StringField, TextAreaField
+from wtforms.validators import DataRequired, Length
 from config import DevConfig
 from datetime import datetime
 from sqlalchemy import func
@@ -79,6 +82,11 @@ class Comment(db.Model):
         return "<Comment- text={}".format(self.text[:15] )
 
 
+class CommentForm(Form):
+    name = StringField('Name',validators=[DataRequired(), Length(max=255)])
+    text = TextAreaField(u'Comment',validators=[DataRequired()])
+
+
 def sidebar_data():
     recent = Post.query.order_by(
         Post.publish_date.desc()
@@ -103,13 +111,30 @@ def home(page=1):
     return render_template('home.html', posts=posts, recent=recent, top_tags=top_tags)
 
 
-@app.route('/post/<int:post_id>')
+@app.route('/post/<int:post_id>', methods=('GET','POST'))
 def post(post_id):
+    form = CommentForm()
+    if form.validate_on_submit():
+        comment=Comment()
+        comment.name = form.name.data
+        comment.text=form.text.data
+        comment.post_id=post_id
+        try:
+            db.session.add(comment)
+            db.session.commit()
+        except Exception as e:
+            flash('Error adding your comment: %s' % str(e), 'error')
+            db.session.rollback()
+        else:
+            flash('Comment added', 'info')
+        return redirect(url_for('post', post_id=post_id))
+
     post = Post.query.get_or_404(post_id)
     tags = post.tags
+    post.user = User.query.get_or_404(post.user_id) #hack
     comments = post.comments.order_by(Comment.date.desc()).all()
     recent, top_tags = sidebar_data()
-    return render_template('post.html',post=post,tags=tags,comments=comments,recent=recent,top_tags=top_tags)
+    return render_template('post.html',post=post,tags=tags,comments=comments,recent=recent,top_tags=top_tags,form=form)
 
 
 @app.route('/posts_by_tag/<string:tag_name>')
@@ -121,7 +146,7 @@ def posts_by_tag(tag_name):
     return render_template('tag.html',tag=tag,posts=posts,recent=recent,top_tags=top_tags)
 
 
-@app.route('/posts_by_user/<string:user_name>')
+@app.route('/posts_by_user/<string:username>')
 def posts_by_user(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = user.posts.order_by(Post.publish_date.desc()).all()
