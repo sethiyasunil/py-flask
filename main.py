@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, flash, url_for, session
+from flask import Flask, render_template, redirect, flash, url_for, session, Blueprint
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm as Form
@@ -12,6 +12,11 @@ app = Flask(__name__)
 app.config.from_object(DevConfig)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+tags = db.Table('post_tags',
+    db.Column('post_id', db.Integer(), db.ForeignKey('post.id')),
+    db.Column('tag_id', db.Integer(), db.ForeignKey('tag.id'))
+)
 
 class User(db.Model):
     __tablename__ = 'internal_users'
@@ -29,13 +34,6 @@ class User(db.Model):
 
     def __repr__(self):
         return "<User- id={} username={} password={}>".format(self.id, self.username, self.password)
-
-
-tags = db.Table('post_tags',
-    db.Column('post_id', db.Integer(), db.ForeignKey('post.id')),
-    db.Column('tag_id', db.Integer(), db.ForeignKey('tag.id'))
-)
-
 
 class Post(db.Model):
     __tablename__ = 'post'
@@ -99,16 +97,28 @@ def sidebar_data():
     ).group_by(Tag).limit(5).all() #.order_by('total DESC')#
     return recent, top_tags
 
+blog_blueprint = Blueprint(
+    'blog',
+    __name__,
+    template_folder='templates/blog',
+    url_prefix='/blog'
+)
+
 
 @app.route('/')
-@app.route('/<int:page>')
+def index():
+    return redirect(url_for('blog.home'))
+
+
+@blog_blueprint.route('/')
+@blog_blueprint.route('/<int:page>')
 def home(page=1):
     posts = Post.query.order_by(Post.publish_date.desc()).paginate(page,app.config['POST_PER_PAGE'],False)
     recent,top_tags=sidebar_data()
     return render_template('home.html', posts=posts, recent=recent, top_tags=top_tags)
 
 
-@app.route('/post/<int:post_id>', methods=('GET','POST'))
+@blog_blueprint.route('/post/<int:post_id>', methods=('GET','POST'))
 def post(post_id):
     form = CommentForm()
     if form.validate_on_submit():
@@ -134,7 +144,7 @@ def post(post_id):
     return render_template('post.html',post=post,tags=tags,comments=comments,recent=recent,top_tags=top_tags,form=form)
 
 
-@app.route('/posts_by_tag/<string:tag_name>')
+@blog_blueprint.route('/posts_by_tag/<string:tag_name>')
 def posts_by_tag(tag_name):
     tag = Tag.query.filter_by(title=tag_name).first_or_404()
     posts = tag.posts.order_by(Post.publish_date.desc()).all()
@@ -143,7 +153,7 @@ def posts_by_tag(tag_name):
     return render_template('tag.html',tag=tag,posts=posts,recent=recent,top_tags=top_tags)
 
 
-@app.route('/posts_by_user/<string:username>')
+@blog_blueprint.route('/posts_by_user/<string:username>')
 def posts_by_user(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = user.posts.order_by(Post.publish_date.desc()).all()
@@ -151,18 +161,19 @@ def posts_by_user(username):
     return render_template('user.html', user=user,posts=posts,recent=recent,top_tags=top_tags)
 
 
-@app.before_request
+@blog_blueprint.before_request
 def before_request():
      session['page_loads']  = session.get('page_loads',0)+1
      print(' before reqeust ----------------------------- {}'.format(session.get('page_loads')))
 
-@app.teardown_request
+@blog_blueprint.teardown_request
 def teardown_request(exception=None):
      print(' teardown_request -----------------------------')
 
-@app.errorhandler(404)
+@blog_blueprint.errorhandler(404)
 def page_not_found(error):
     return render_template('404.html'),404
 
+app.register_blueprint(blog_blueprint)
 if __name__ == '__main__':
     app.run()
