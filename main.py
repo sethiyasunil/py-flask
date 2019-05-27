@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, flash, url_for
+from flask import Flask, render_template, redirect, flash, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm as Form
@@ -100,9 +100,6 @@ def sidebar_data():
     return recent, top_tags
 
 
-
-
-
 @app.route('/')
 @app.route('/<int:page>')
 def home(page=1):
@@ -152,6 +149,20 @@ def posts_by_user(username):
     posts = user.posts.order_by(Post.publish_date.desc()).all()
     recent,top_tags=sidebar_data()
     return render_template('user.html', user=user,posts=posts,recent=recent,top_tags=top_tags)
+
+
+@app.before_request
+def before_request():
+     session['page_loads']  = session.get('page_loads',0)+1
+     print(' before reqeust ----------------------------- {}'.format(session.get('page_loads')))
+
+@app.teardown_request
+def teardown_request(exception=None):
+     print(' teardown_request -----------------------------')
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('404.html'),404
 
 if __name__ == '__main__':
     app.run()
