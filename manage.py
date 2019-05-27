@@ -1,13 +1,12 @@
-from main import app, db, User, Post, Tag, tags, migrate
+import os
+from webapp import db, migrate, create_app
+from webapp.blog.models import User, Post, Tag
+
+
+env = os.environ.get('WEBAPP_ENV', 'dev')
+app = create_app('config.%sConfig' % env.capitalize())
+
 
 @app.shell_context_processor
 def make_shell_context():
-    return dict(app=app, db = db, User=User, Post=Post, Tag=Tag,migrate=migrate)
-
-'''
-@db.event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-'''
+    return dict(app=app, db=db, User=User, Post=Post, Tag=Tag, migrate=migrate)
